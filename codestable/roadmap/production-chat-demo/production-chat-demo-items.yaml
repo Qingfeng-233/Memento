@@ -1,0 +1,83 @@
+roadmap: production-chat-demo
+created: 2026-07-08
+
+items:
+  - slug: stable-memory-ids
+    description: 把 Memento 默认 node_id 改为稳定唯一 ID，并补删除后新增的回归测试
+    depends_on: []
+    status: done
+    feature: 2026-07-08-stable-memory-ids
+    minimal_loop: true
+    notes: 防止删除中间节点后继续对话导致新记忆静默丢失
+
+  - slug: turn-model
+    description: 引入 ChatTurn 与 turn_id，让每轮对话、历史、记忆节点建立明确绑定
+    depends_on: [stable-memory-ids]
+    status: done
+    feature: 2026-07-08-turn-model
+    minimal_loop: false
+    notes: 后续 retry/edit/session 隔离都依赖 turn_id
+
+  - slug: session-isolation
+    description: 前端创建并保存 session_id，后端按 session 过滤 history 和 retrieval
+    depends_on: [turn-model]
+    status: done
+    feature: 2026-07-08-session-isolation
+    minimal_loop: false
+    notes: 先支持匿名 session，不做完整账号体系
+
+  - slug: memory-ingest-cleaner
+    description: 入库前清洗 think 段、流式错误、Mock 调试文本，统一记忆格式
+    depends_on: [turn-model]
+    status: done
+    feature: 2026-07-08-memory-ingest-cleaner
+    minimal_loop: false
+    notes: 避免长期记忆被推理段和调试文本污染
+
+  - slug: safe-retry-edit
+    description: 用 turn_id 精确 retry 和 edit，旧 turn 和旧 memory 标记 superseded
+    depends_on: [session-isolation, memory-ingest-cleaner]
+    status: done
+    feature: 2026-07-08-safe-retry-edit
+    minimal_loop: false
+    notes: 替代当前 replace_last 全局回滚逻辑
+
+  - slug: consolidation-queue
+    description: 把手动和闲置巩固改为串行 job，统一记录 job 状态与错误
+    depends_on: [stable-memory-ids]
+    status: done
+    feature: 2026-07-08-consolidation-queue
+    minimal_loop: false
+    notes: 避免聊天写入和巩固并发修改同一 Memento
+
+  - slug: demo-auth-token
+    description: 给本地 demo 增加 token 保护，危险接口和设置接口需要通过校验
+    depends_on: [session-isolation]
+    status: done
+    feature: 2026-07-08-demo-auth-token
+    minimal_loop: false
+    notes: 默认 127.0.0.1 可宽松，非 loopback host 必须启用 token
+
+  - slug: store-abstraction-v2
+    description: 新增 ChatStore 抽象，替代散落的 history、settings、job JSON 读写
+    depends_on: [turn-model, session-isolation]
+    status: done
+    feature: 2026-07-08-store-abstraction-v2
+    minimal_loop: false
+    notes: 第一阶段 JSON 实现，后续可迁移 SQLite 或 Postgres
+
+  - slug: observability-panel
+    description: 前端和 API 展示 turn 状态、memory 写入、巩固 job、错误和检索解释
+    depends_on: [consolidation-queue, store-abstraction-v2]
+    status: done
+    feature: 2026-07-08-observability-panel
+    minimal_loop: false
+    notes: 帮助判断记忆系统行为，而不是只看最终回复
+
+  - slug: multi-user-ready-mode
+    description: 在 owner_id、visibility、resource ownership 层补齐多人共享服务的最小边界
+    depends_on: [demo-auth-token, store-abstraction-v2, safe-retry-edit]
+    status: done
+    feature: 2026-07-08-multi-user-ready-mode
+    minimal_loop: false
+    notes: 如果最终只做单用户本地工具，此项可降级或 dropped

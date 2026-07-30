@@ -1,0 +1,63 @@
+# Python
+__pycache__/
+*.py[cod]
+*.egg-info/
+dist/
+build/
+
+# Models (large weights)
+models/
+
+# IDE
+.vscode/
+.idea/
+*.swp
+
+# Secrets
+.env
+opencode.jsonc
+data/chat_llm_settings.json
+
+# Local demo state
+data/memento_store/
+data/memento_store/**
+data/memento.db
+
+# Private datasets
+data/testtxt.txt
+
+# Internal notes and experiment records
+/docs/
+
+# OS
+.DS_Store
+Thumbs.db
+nul
+
+# Generated test outputs
+**/*_output.txt
+**/*_results.txt
+**/*_result.txt
+**/*_comparison.txt
+
+# Internal benchmark report generated from private evaluation data
+/BENCHMARK_FOURWAY.md
+
+# Test artifacts
+scripts/test/_mem0_*/
+scripts/test/_mem0_*/**
+
+# Local model/API caches
+data/vector_cache/
+data/keyatten_cache/
+data/keyword_cache/
+data/llm_cache/
+data/surprisal_cache/
+
+# Benchmark generated artifacts
+benchmark/results/
+benchmark/_mem0_qdrant/
+benchmark/_mem0_bench/
+benchmark/_mem0_test/
+benchmark/_mempalace_demo/
+benchmark/_mempalace_palace/

@@ -1,0 +1,1362 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Memento Chat</title>
+<style>
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  :root {
+    --bg: #131314;
+    --surface: #1e1e20;
+    --surface2: #2b2a2d;
+    --text: #e3e3e3;
+    --dim: #c4c7c5;
+    --accent: #a8c7fa;
+    --border: #3c4043;
+    --green: #cbf078;
+    --red: #f28b82;
+    --yellow: #fdd663;
+  }
+  body {
+    font-family: "Google Sans", -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+    background: var(--bg);
+    color: var(--text);
+    height: 100vh;
+    display: flex;
+  }
+  /* 主对话区 */
+  .main {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    min-width: 0;
+    background: var(--bg);
+  }
+  .header {
+    padding: 16px 24px;
+    background: var(--bg);
+    border-bottom: 1px solid var(--border);
+    display: flex;
+    align-items: center;
+    gap: 12px;
+  }
+  .header h1 {
+    font-size: 18px;
+    font-weight: 500;
+    font-family: "Product Sans", "Google Sans", sans-serif;
+    color: var(--text);
+  }
+  .badge {
+    font-size: 11px;
+    padding: 4px 10px;
+    border-radius: 12px;
+    background: var(--surface2);
+    color: var(--dim);
+  }
+  .badge.mock {
+    color: var(--yellow);
+    background: rgba(253, 214, 99, 0.1);
+  }
+  .messages {
+    flex: 1;
+    overflow-y: auto;
+    padding: 24px 20px;
+  }
+  /* 消息列表极简无气泡排版 */
+  .turn {
+    margin: 0 auto 28px;
+    max-width: 840px;
+    display: flex;
+    flex-direction: column;
+  }
+  .role-row {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    margin-bottom: 6px;
+  }
+  .role-avatar {
+    width: 24px;
+    height: 24px;
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 11px;
+    font-weight: 600;
+    user-select: none;
+  }
+  .role-avatar.user {
+    background: #4f5b66;
+    color: #ffffff;
+  }
+  .role-avatar.assistant {
+    background: linear-gradient(135deg, #a8c7fa, #d2e3fc);
+    color: #131314;
+  }
+  .role-name {
+    font-size: 13px;
+    font-weight: 500;
+    color: var(--dim);
+  }
+  .bubble {
+    padding: 0 0 0 32px;
+    border-radius: 0;
+    background: transparent !important;
+    border: none !important;
+    white-space: pre-wrap;
+    word-break: break-word;
+    font-size: 15px;
+    line-height: 1.6;
+    color: var(--text);
+  }
+  /* 思考链样式 */
+  .think-box {
+    margin: 8px 0 8px 32px;
+    background: rgba(168, 199, 250, 0.03);
+    border: 1px dashed var(--border);
+    border-radius: 8px;
+    transition: all 0.3s;
+  }
+  .think-box.thinking {
+    border-color: var(--accent);
+    animation: pulse-border 1.5s infinite ease-in-out;
+  }
+  @keyframes pulse-border {
+    0% { border-color: rgba(168, 199, 250, 0.2); box-shadow: 0 0 4px rgba(168, 199, 250, 0.1); }
+    50% { border-color: rgba(168, 199, 250, 0.6); box-shadow: 0 0 8px rgba(168, 199, 250, 0.2); }
+    100% { border-color: rgba(168, 199, 250, 0.2); box-shadow: 0 0 4px rgba(168, 199, 250, 0.1); }
+  }
+  .think-box details {
+    padding: 10px 14px;
+  }
+  .think-title {
+    font-size: 12px;
+    color: var(--accent);
+    cursor: pointer;
+    user-select: none;
+    font-weight: 500;
+    outline: none;
+    display: flex;
+    align-items: center;
+    gap: 6px;
+  }
+  .think-content {
+    font-size: 13px;
+    color: #9aa0a6;
+    margin-top: 8px;
+    line-height: 1.5;
+    white-space: pre-wrap;
+  }
+  /* 记忆卡片 */
+  .memories {
+    margin: 8px 0 12px 32px;
+    padding: 10px 14px;
+    background: rgba(168, 199, 250, 0.04);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+  }
+  .memories-title {
+    font-size: 12px;
+    color: var(--accent);
+    cursor: pointer;
+    user-select: none;
+    font-weight: 500;
+  }
+  .memory-item {
+    font-size: 12px;
+    color: var(--dim);
+    margin: 6px 0;
+    padding: 8px 10px;
+    background: var(--surface2);
+    border-radius: 6px;
+    border: 1px solid var(--border);
+    line-height: 1.5;
+  }
+  .memory-item .score {
+    color: var(--green);
+    font-weight: 600;
+  }
+  .memory-item .id {
+    color: var(--dim);
+    font-size: 10px;
+  }
+  .memories.collapsed .memory-list {
+    display: none;
+  }
+  /* 输入区 (AI Studio 风格) */
+  .input-area {
+    padding: 20px 20px 30px;
+    background: var(--bg);
+    border-top: none;
+    display: flex;
+    justify-content: center;
+  }
+  .input-card {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 24px;
+    padding: 12px 16px;
+    width: 100%;
+    max-width: 840px;
+    box-shadow: 0 4px 24px rgba(0,0,0,0.2);
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+    transition: border-color 0.2s, box-shadow 0.2s;
+  }
+  .input-card:focus-within {
+    border-color: var(--accent);
+    box-shadow: 0 4px 28px rgba(0,0,0,0.3);
+  }
+  .input-card textarea {
+    width: 100%;
+    background: transparent;
+    color: var(--text);
+    border: none;
+    resize: none;
+    outline: none;
+    font-size: 15px;
+    font-family: inherit;
+    line-height: 1.5;
+    height: 60px;
+  }
+  .input-toolbar {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-top: 4px;
+  }
+  .toolbar-left {
+    display: flex;
+    gap: 8px;
+    align-items: center;
+  }
+  .toolbar-right {
+    display: flex;
+    gap: 8px;
+    align-items: center;
+  }
+  .model-chip {
+    background: var(--surface2);
+    border: 1px solid var(--border);
+    color: var(--dim);
+    border-radius: 16px;
+    padding: 5px 12px;
+    font-size: 12px;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    user-select: none;
+    transition: background 0.15s, color 0.15s;
+  }
+  .model-chip:hover {
+    background: #37393b;
+    color: var(--text);
+  }
+  .run-btn {
+    background: #0b57d0;
+    color: #ffffff;
+    border: none;
+    border-radius: 20px;
+    padding: 6px 18px;
+    font-size: 13px;
+    font-weight: 500;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    transition: background 0.15s;
+  }
+  .run-btn:hover {
+    background: #1b6ef3;
+  }
+  .run-btn:disabled {
+    background: var(--surface2);
+    color: #8e918f;
+    cursor: not-allowed;
+  }
+  /* 侧栏 */
+  .sidebar {
+    width: 300px;
+    background: var(--surface);
+    border-left: 1px solid var(--border);
+    overflow-y: auto;
+    padding: 18px;
+    flex-shrink: 0;
+  }
+  .sidebar h2 {
+    font-size: 12px;
+    color: var(--dim);
+    margin-bottom: 10px;
+    text-transform: uppercase;
+    letter-spacing: 0.8px;
+  }
+  .stat-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 8px;
+    margin-bottom: 18px;
+  }
+  .stat {
+    background: var(--surface2);
+    padding: 8px 10px;
+    border-radius: 6px;
+    border: 1px solid var(--border);
+  }
+  .stat .k {
+    font-size: 10px;
+    color: var(--dim);
+  }
+  .stat .v {
+    font-size: 16px;
+    font-weight: 600;
+    color: var(--text);
+  }
+  .actions {
+    display: flex;
+    gap: 8px;
+    margin-bottom: 18px;
+  }
+  .actions button {
+    flex: 1;
+    padding: 8px;
+    font-size: 12px;
+    border: 1px solid var(--border);
+    border-radius: 6px;
+    background: var(--surface2);
+    color: var(--text);
+    cursor: pointer;
+    font-weight: 500;
+  }
+  .actions button:hover {
+    background: #37393b;
+  }
+  .mem-list {
+    font-size: 12px;
+  }
+  .mem-list .item {
+    padding: 10px;
+    background: var(--surface2);
+    border-radius: 8px;
+    margin-bottom: 8px;
+    border: 1px solid var(--border);
+    cursor: pointer;
+    transition: border-color 0.15s;
+  }
+  .mem-list .item:hover {
+    border-color: var(--accent);
+  }
+  .mem-list .item .t {
+    color: var(--text);
+    line-height: 1.4;
+  }
+  .mem-list .item .m {
+    color: var(--dim);
+    font-size: 10px;
+    margin-top: 5px;
+  }
+  .conso-log {
+    font-size: 11px;
+    color: var(--dim);
+    max-height: 200px;
+    overflow-y: auto;
+  }
+  .conso-log .entry {
+    padding: 6px 8px;
+    background: var(--surface2);
+    border-radius: 6px;
+    border: 1px solid var(--border);
+    margin-bottom: 6px;
+    line-height: 1.4;
+  }
+  .conso-log .step {
+    color: var(--green);
+  }
+  .obs-list {
+    max-height: 260px;
+    overflow-y: auto;
+    font-size: 11px;
+  }
+  .obs-entry {
+    padding: 8px 10px;
+    background: var(--surface2);
+    border-radius: 6px;
+    border: 1px solid var(--border);
+    margin-bottom: 6px;
+    line-height: 1.4;
+    color: var(--dim);
+  }
+  .obs-entry .title {
+    color: var(--text);
+    margin-bottom: 3px;
+    word-break: break-all;
+  }
+  .obs-entry .tag {
+    display: inline-block;
+    color: var(--green);
+    margin-right: 6px;
+  }
+  .spinner {
+    display: inline-block;
+    width: 12px;
+    height: 12px;
+    border: 2px solid rgba(255,255,255,0.1);
+    border-top-color: var(--accent);
+    border-radius: 50%;
+    animation: spin 0.8s linear infinite;
+  }
+  @keyframes spin { to { transform: rotate(360deg); } }
+  .empty {
+    color: var(--dim);
+    font-size: 14px;
+    padding: 60px;
+    text-align: center;
+    font-weight: 300;
+  }
+  /* 消息操作栏 */
+  .msg-actions {
+    display: flex;
+    gap: 8px;
+    margin-top: 4px;
+    opacity: 0;
+    transition: opacity 0.15s;
+  }
+  .turn:hover .msg-actions {
+    opacity: 1;
+  }
+  .msg-actions button {
+    background: transparent;
+    color: var(--dim);
+    border: 1px solid var(--border);
+    border-radius: 6px;
+    padding: 3px 10px;
+    font-size: 11px;
+    cursor: pointer;
+  }
+  .msg-actions button:hover {
+    color: var(--accent);
+    border-color: var(--accent);
+    background: rgba(168,199,250,0.04);
+  }
+  /* 编辑态 */
+  .edit-area {
+    width: 100%;
+    background: var(--surface2);
+    color: var(--text);
+    border: 1px solid var(--accent);
+    border-radius: 8px;
+    padding: 10px 12px;
+    font-size: 14px;
+    font-family: inherit;
+    resize: vertical;
+    min-height: 48px;
+    outline: none;
+  }
+  .edit-actions {
+    display: flex;
+    gap: 6px;
+    margin-top: 6px;
+  }
+  .edit-actions button {
+    padding: 4px 12px;
+    font-size: 12px;
+    border: 1px solid var(--border);
+    border-radius: 4px;
+    background: var(--surface2);
+    color: var(--text);
+    cursor: pointer;
+  }
+  .edit-actions button:hover {
+    background: #37393b;
+  }
+  /* 设置模态框 */
+  .modal-bg {
+    position: fixed;
+    inset: 0;
+    background: rgba(0,0,0,0.6);
+    display: none;
+    align-items: center;
+    justify-content: center;
+    z-index: 100;
+  }
+  .modal-bg.show {
+    display: flex;
+  }
+  .modal {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 16px;
+    padding: 24px;
+    width: 480px;
+    max-width: 92vw;
+    box-shadow: 0 10px 40px rgba(0,0,0,0.5);
+  }
+  .modal h2 {
+    font-size: 18px;
+    margin-bottom: 16px;
+    font-weight: 500;
+  }
+  .modal .field {
+    margin-bottom: 14px;
+  }
+  .modal label {
+    display: block;
+    font-size: 12px;
+    color: var(--dim);
+    margin-bottom: 4px;
+  }
+  .modal input, .modal select {
+    width: 100%;
+    background: var(--bg);
+    color: var(--text);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    padding: 8px 12px;
+    font-size: 13px;
+    font-family: inherit;
+    outline: none;
+  }
+  .modal input:focus, .modal select:focus {
+    border-color: var(--accent);
+  }
+  .modal .row {
+    display: flex;
+    gap: 8px;
+    align-items: flex-end;
+  }
+  .modal .row > div:first-child {
+    flex: 1;
+  }
+  .modal .hint {
+    font-size: 11px;
+    color: var(--dim);
+    margin-top: 4px;
+  }
+  .modal .actions {
+    display: flex;
+    gap: 8px;
+    justify-content: flex-end;
+    margin-top: 20px;
+  }
+  .modal .actions button {
+    padding: 8px 16px;
+    font-size: 13px;
+    font-weight: 500;
+    border-radius: 8px;
+    cursor: pointer;
+  }
+  .modal .actions button.secondary {
+    background: transparent;
+    border: 1px solid var(--border);
+    color: var(--text);
+  }
+  .modal .actions button.secondary:hover {
+    background: var(--surface2);
+  }
+  .modal .err {
+    color: var(--red);
+    font-size: 12px;
+    margin-top: 6px;
+  }
+  .modal .ok {
+    color: var(--green);
+    font-size: 12px;
+    margin-top: 6px;
+  }
+  .modal .fetch-btn {
+    white-space: nowrap;
+    padding: 8px 12px;
+    font-size: 12px;
+    border: 1px solid var(--border);
+    background: var(--surface2);
+    color: var(--text);
+  }
+  .modal .fetch-btn:hover {
+    background: #37393b;
+  }
+  /* 自定义模型下拉 */
+  .model-wrap {
+    position: relative;
+    height: 0;
+  }
+  .model-dropdown {
+    position: absolute;
+    top: 4px;
+    left: 0;
+    right: 0;
+    max-height: 240px;
+    overflow-y: auto;
+    background: var(--surface2);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    margin-top: 2px;
+    z-index: 200;
+    display: none;
+    box-shadow: 0 8px 32px rgba(0,0,0,0.5);
+  }
+  .model-dropdown.show {
+    display: block;
+  }
+  .model-dropdown .opt {
+    padding: 8px 12px;
+    font-size: 12px;
+    cursor: pointer;
+    color: var(--text);
+    line-height: 1.3;
+  }
+  .model-dropdown .opt:hover, .model-dropdown .opt.active {
+    background: var(--accent);
+    color: var(--bg);
+  }
+  .model-dropdown .empty-opt {
+    padding: 10px;
+    font-size: 12px;
+    color: var(--dim);
+  }
+  .model-dropdown .search-box {
+    padding: 6px 8px;
+    border-bottom: 1px solid var(--border);
+    position: sticky;
+    top: 0;
+    background: var(--surface2);
+  }
+  .model-dropdown .search-box input {
+    width: 100%;
+    background: var(--bg);
+    color: var(--text);
+    border: 1px solid var(--border);
+    border-radius: 4px;
+    padding: 5px 8px;
+    font-size: 12px;
+    font-family: inherit;
+  }
+</style>
+</head>
+<body>
+
+<div class="main">
+  <div class="header">
+    <h1>Memento Chat</h1>
+    <span class="badge" id="llm-badge">loading…</span>
+    <span class="badge" id="store-badge">store: …</span>
+    <span style="flex:1"></span>
+    <button class="secondary" id="settings-btn" onclick="openSettings()">⚙ 设置</button>
+  </div>
+  <div class="messages" id="messages">
+    <div class="empty" id="empty-hint">开始对话吧。说点什么，记忆系统会自动记录并检索相关过往。</div>
+  </div>
+  <div class="input-area">
+    <div class="input-card">
+      <textarea id="input" placeholder="输入消息… (Enter 发送，Shift+Enter 换行)" autofocus></textarea>
+      <div class="input-toolbar">
+        <div class="toolbar-left">
+          <div class="model-chip" onclick="openSettings()" id="model-chip-select">
+            <span style="display:inline-block; width:8px; height:8px; border-radius:50%; background:#9ece6a;"></span>
+            <span id="model-chip-text">正在加载模型…</span>
+          </div>
+        </div>
+        <div class="toolbar-right">
+          <button id="send-btn" class="run-btn" onclick="send()">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" style="margin-right:2px"><line x1="22" y1="2" x2="11" y2="13"></line><polygon points="22 2 15 22 11 13 2 9 22 2"></polygon></svg>
+            Run
+          </button>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<div class="sidebar">
+  <h2>系统状态</h2>
+  <div class="stat-grid" id="stats"></div>
+  <div class="actions">
+    <button class="secondary" onclick="consolidate()">手动巩固</button>
+    <button class="secondary" onclick="resetHistory()">清空对话</button>
+  </div>
+  <div class="actions" style="margin-top:-10px">
+    <button style="background:transparent; border:1px solid var(--red); color:var(--red); flex:1; padding:8px; font-size:12px; font-weight:500; cursor:pointer;" onclick="resetMemory()">⚠️ 清空记忆库</button>
+  </div>
+
+  <h2>最近记忆 <span id="pending-tag" style="color:var(--yellow)"></span></h2>
+  <div class="mem-list" id="mem-list"></div>
+
+  <h2 style="margin-top:18px">巩固日志</h2>
+  <div class="conso-log" id="conso-log"></div>
+
+  <h2 style="margin-top:18px">调试观测</h2>
+  <div class="obs-list" id="observability"></div>
+</div>
+
+<!-- 设置模态框 -->
+<div class="modal-bg" id="settings-modal" onclick="modalBgClick(event)">
+  <div class="modal">
+    <!-- 挡浏览器密码自动填充 -->
+    <input type="password" style="display:none" autocomplete="off" tabindex="-1">
+    <h2>LLM 设置</h2>
+    <div class="field">
+      <label>API Base URL</label>
+      <input id="set-base" autocomplete="off" placeholder="https://api.siliconflow.cn/v1">
+      <div class="hint">OpenAI 兼容端点地址</div>
+    </div>
+    <div class="field">
+      <label>API Key</label>
+      <input id="set-key" type="password" autocomplete="new-password" placeholder="sk-...">
+      <div class="hint" id="key-hint"></div>
+    </div>
+    <div class="field">
+      <label>模型</label>
+      <div class="row">
+        <input id="set-model" autocomplete="off" placeholder="获取列表后点右侧按钮选择，或手动输入">
+        <button class="secondary fetch-btn" onclick="fetchModels()">获取列表</button>
+        <button class="secondary fetch-btn" id="pick-btn" onclick="toggleDropdown()" disabled>▼选择</button>
+      </div>
+      <div class="model-wrap">
+        <div class="model-dropdown" id="model-dropdown"></div>
+      </div>
+      <div class="hint" id="model-hint"></div>
+    </div>
+    <div class="err" id="set-err"></div>
+    <div class="ok" id="set-ok"></div>
+    <div class="actions">
+      <button class="secondary" onclick="closeSettings()">取消</button>
+      <button onclick="saveSettings()">保存</button>
+    </div>
+  </div>
+</div>
+
+<script>
+const $ = id => document.getElementById(id);
+const messagesEl = $('messages');
+const inputEl = $('input');
+const SESSION_KEY = 'memento.chat.sessionId';
+const TOKEN_KEY = 'memento.chat.token';
+let _sessionId = localStorage.getItem(SESSION_KEY) || '';
+let _authToken = localStorage.getItem(TOKEN_KEY) || '';
+
+inputEl.addEventListener('keydown', e => {
+  if (e.key === 'Enter' && !e.shiftKey) {
+    e.preventDefault();
+    send();
+  }
+});
+
+function authHeaders(headers = {}) {
+  const merged = { ...headers };
+  if (_authToken) merged['X-Memento-Token'] = _authToken;
+  return merged;
+}
+
+function askToken() {
+  const token = prompt('请输入 Memento Demo Token');
+  if (!token) return false;
+  _authToken = token.trim();
+  localStorage.setItem(TOKEN_KEY, _authToken);
+  return true;
+}
+
+async function api(path, opts = {}) {
+  opts.headers = authHeaders(opts.headers || {});
+  let r = await fetch(path, opts);
+  if (r.status === 401 && askToken()) {
+    opts.headers = authHeaders(opts.headers || {});
+    r = await fetch(path, opts);
+  }
+  return r.json();
+}
+
+async function ensureSession() {
+  const body = {
+    session_id: _sessionId || null,
+    client_label: navigator.userAgent.slice(0, 80),
+  };
+  const session = await api('/api/session', {
+    method: 'POST',
+    headers: authHeaders({'Content-Type': 'application/json'}),
+    body: JSON.stringify(body),
+  });
+  if (session.session_id && session.session_id !== _sessionId) {
+    _sessionId = session.session_id;
+    localStorage.setItem(SESSION_KEY, _sessionId);
+  }
+  return _sessionId;
+}
+
+function sessionQuery(prefix = '?') {
+  return _sessionId ? `${prefix}session_id=${encodeURIComponent(_sessionId)}` : '';
+}
+
+function escape(s) {
+  return (s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
+}
+
+async function loadConfig() {
+  const c = await api('/api/config');
+  $('llm-badge').textContent = c.llm_mock ? 'MOCK 模式' : ('LLM: ' + c.llm_model);
+  $('llm-badge').className = 'badge' + (c.llm_mock ? ' mock' : '');
+  $('store-badge').textContent = 'store: ' + c.store.split(/[\\/]/).pop();
+  
+  const modelText = c.llm_mock ? 'Mock Mode' : (c.llm_model.split('/').pop() || 'Unknown Model');
+  const chipTextEl = $('model-chip-text');
+  if (chipTextEl) chipTextEl.textContent = modelText;
+}
+
+async function loadStats() {
+  const s = await api('/api/stats');
+  const m = s.memento || {};
+  const idleMin = Math.floor(s.idle_seconds / 60);
+  const idleSec = Math.floor(s.idle_seconds % 60);
+  const cells = [
+    ['节点', m.total_nodes||0], ['待入库', s.pending||0],
+    ['活跃', m.active_nodes||0], ['边数', m.total_edges||0],
+    ['闲置', `${idleMin}m${idleSec}s`], ['时钟步', m.clock_step||0],
+  ];
+  $('stats').innerHTML = cells.map(([k,v]) =>
+    `<div class="stat"><div class="k">${k}</div><div class="v">${v}</div></div>`).join('');
+  $('pending-tag').textContent = s.pending > 0 ? `(待入库 ${s.pending})` : '';
+}
+
+async function loadMemories() {
+  await ensureSession();
+  const list = await api(`/api/memories?limit=15&session_id=${encodeURIComponent(_sessionId)}`);
+  if (!list.length) { $('mem-list').innerHTML = '<div style="color:var(--dim);font-size:12px">暂无记忆</div>'; return; }
+  $('mem-list').innerHTML = list.map(m =>
+    `<div class="item" style="position:relative; padding-right:45px">
+      <div class="t">${escape((m.text||'').slice(0,60))}…</div>
+      <div class="m">${m.id} · ${m.source} · ${m.created_at||''}</div>
+      <button style="position:absolute; right:8px; top:50%; transform:translateY(-50%); background:transparent; border:none; color:var(--red); font-size:11px; cursor:pointer;" onclick="event.stopPropagation();deleteNode('${m.id}')">删除</button>
+     </div>`).join('');
+}
+
+async function loadConsoLog() {
+  const log = await api('/api/consolidation-log');
+  if (!log.length) { $('conso-log').innerHTML = '<div style="color:var(--dim)">暂无</div>'; return; }
+  $('conso-log').innerHTML = log.slice(-6).reverse().map(e =>
+    `<div class="entry"><div>${e.time}</div>`
+    + (e.error ? `<div style="color:var(--red)">${escape(e.error)}</div>`
+       : (e.steps||[]).map(s => `<div class="step">· ${escape(s)}</div>`).join(''))
+    + `</div>`).join('');
+}
+
+async function loadObservability() {
+  await ensureSession();
+  const obs = await api(`/api/observability${sessionQuery()}`);
+  const turns = obs.turns || [];
+  const memories = obs.memory_events || [];
+  const jobs = obs.jobs || [];
+  const retrievals = obs.retrievals || [];
+  const errors = obs.errors || [];
+  const html = [
+    `<div class="obs-entry"><div class="title">turns ${turns.length} · memories ${memories.length}</div>`
+      + `<div>jobs ${jobs.length} · retrievals ${retrievals.length} · errors ${errors.length}</div></div>`,
+    ...turns.slice(0, 4).map(t =>
+      `<div class="obs-entry"><div class="title">${escape(t.turn_id || '')}</div>`
+      + `<span class="tag">${escape(t.status || '')}</span>${escape(t.user_preview || '')}</div>`
+    ),
+    ...memories.slice(0, 4).map(m =>
+      `<div class="obs-entry"><div class="title">${escape(m.node_id || '')}</div>`
+      + `<span class="tag">${escape(m.stage || '')}</span><span class="tag">${escape(m.status || '')}</span>${escape(m.text_preview || '')}</div>`
+    ),
+    ...retrievals.slice(-3).reverse().map(r =>
+      `<div class="obs-entry"><div class="title">retrieval ${escape(r.turn_id || '')}</div>`
+      + `${escape((r.memory_ids || []).join(', ') || 'no memory')}</div>`
+    ),
+    ...errors.slice(-3).reverse().map(e =>
+      `<div class="obs-entry"><div class="title" style="color:var(--red)">error ${escape(e.turn_id || '')}</div>`
+      + `${escape(e.error || '')}</div>`
+    ),
+  ].join('');
+  $('observability').innerHTML = html || '<div style="color:var(--dim)">暂无</div>';
+}
+
+let _turnSeq = 0;
+
+function parseStreamText(rawText) {
+  const thinkStart = rawText.indexOf('<think>');
+  const thinkEnd = rawText.indexOf('</think>');
+  
+  if (thinkStart !== -1) {
+    if (thinkEnd !== -1) {
+      const thinkContent = rawText.substring(thinkStart + 7, thinkEnd).trim();
+      const replyContent = rawText.substring(thinkEnd + 8).trim();
+      return { think: thinkContent, reply: replyContent, isThinking: false };
+    } else {
+      const thinkContent = rawText.substring(thinkStart + 7).trim();
+      return { think: thinkContent, reply: "", isThinking: true };
+    }
+  } else {
+    return { think: "", reply: rawText, isThinking: false };
+  }
+}
+
+function renderMemoriesUsed(turnId, memories, isMock) {
+  const container = $('memories-' + turnId);
+  if (!container) return;
+  if (!memories || !memories.length) {
+    if (!isMock) {
+      container.innerHTML = `<div class="memories" style="border-style: dashed;"><div class="memories-title" style="color:var(--dim)">未检索到相关记忆（记忆库尚少）</div></div>`;
+    }
+    return;
+  }
+  const items = memories.map(m =>
+    `<div class="memory-item">
+      <span class="score" style="color:var(--green)">[相似度 ${m.score.toFixed(2)}]</span>
+      <span style="color:var(--dim)">[${m.id}]</span> ${escape(m.text)}
+     </div>`).join('');
+
+  container.innerHTML = `
+    <div class="memories collapsed">
+      <div class="memories-title" onclick="this.parentElement.classList.toggle('collapsed')">
+        本轮调用了 ${memories.length} 条长期记忆 ▾
+      </div>
+      <div class="memory-list">${items}</div>
+    </div>
+  `;
+}
+
+function renderAssistantContent(turnId, rawText, isDone) {
+  const container = $('loading-' + turnId);
+  if (!container) return;
+  const parsed = parseStreamText(rawText);
+  const headerHtml = `
+    <div class="role-row" style="margin-top:16px">
+      <div class="role-avatar assistant">G</div>
+      <div class="role-name">助手 ${parsed.isThinking ? '<span class="spinner"></span>' : ''}</div>
+    </div>
+  `;
+  let thinkHtml = '';
+  if (parsed.think) {
+    const title = parsed.isThinking ? '思考中…' : '已完成思考（点击查看）';
+    thinkHtml = `
+      <div class="think-box ${parsed.isThinking ? 'thinking' : ''}">
+        <details ${parsed.isThinking ? 'open' : ''}>
+          <summary class="think-title">${title}</summary>
+          <div class="think-content">${escape(parsed.think)}</div>
+        </details>
+      </div>
+    `;
+  }
+  const replyHtml = `<div class="bubble assistant" id="assistant-content-${turnId}">${escape(parsed.reply || (parsed.isThinking ? '正在思考中...' : ''))}</div>`;
+  let actionsHtml = '';
+  if (isDone) {
+    actionsHtml = `
+      <div class="msg-actions" style="margin-left: 32px;">
+        <button onclick="editMessage('${turnId}')">✎ 编辑</button>
+        <button onclick="retryMessage('${turnId}')">↻ 重试</button>
+      </div>
+    `;
+  }
+  const memEl = $('memories-' + turnId);
+  const memHtml = memEl ? memEl.outerHTML : `<div id="memories-${turnId}"></div>`;
+  container.innerHTML = headerHtml + memHtml + thinkHtml + replyHtml + actionsHtml;
+}
+
+function renderError(turnId, msg) {
+  const container = $('loading-' + turnId);
+  if (!container) return;
+  container.innerHTML = `
+    <div class="role-row" style="margin-top:16px">
+      <div class="role-avatar assistant">G</div>
+      <div class="role-name">助手</div>
+    </div>
+    <div class="bubble assistant" style="color:var(--red); border-color:var(--red) !important; background:rgba(242,139,130,0.05) !important; padding:10px 14px; border-radius:8px; margin-left:32px">
+      错误: ${escape(msg)}
+    </div>
+    <div class="msg-actions" style="margin-left: 32px;">
+      <button onclick="retryMessage('${turnId}')">↻ 重试</button>
+    </div>
+  `;
+}
+
+async function send() {
+  const text = inputEl.value.trim();
+  if (!text) return;
+  inputEl.value = '';
+  await runTurn(text, false);
+}
+
+async function runTurn(text, replaceLast, sourceTurnId = null, editMode = false) {
+  $('send-btn').disabled = true;
+  $('empty-hint')?.remove();
+  const sessionId = await ensureSession();
+  const turnId = 'turn_' + (_turnSeq++);
+  const isRetry = replaceLast;
+  if (isRetry) {
+    const lastTurn = messagesEl.querySelector('.turn:last-child');
+    if (lastTurn) lastTurn.remove();
+  }
+  const turn = document.createElement('div');
+  turn.className = 'turn';
+  turn.id = turnId;
+  turn.dataset.userText = text;
+  if (sourceTurnId) turn.dataset.supersedesTurnId = sourceTurnId;
+  turn.innerHTML = `
+    <div class="role-row">
+      <div class="role-avatar user">U</div>
+      <div class="role-name">你</div>
+    </div>
+    <div class="bubble user">${escape(text)}</div>
+    <div class="msg-actions" style="margin-left: 32px;">
+      <button onclick="editMessage('${turnId}')">✎ 编辑</button>
+      <button onclick="retryMessage('${turnId}')">↻ 重试</button>
+    </div>
+    <div id="loading-${turnId}">
+      <div class="role-row" style="margin-top:16px">
+        <div class="role-avatar assistant">G</div>
+        <div class="role-name">助手 <span class="spinner"></span></div>
+      </div>
+      <div id="memories-${turnId}"></div>
+      <div class="bubble assistant" id="assistant-content-${turnId}">思考中…</div>
+    </div>
+  `;
+  messagesEl.appendChild(turn);
+  messagesEl.scrollTop = messagesEl.scrollHeight;
+  let rawReplyText = "";
+  let memoriesUsed = [];
+  try {
+    const body = { session_id: sessionId, text, replace_last: replaceLast };
+    if (sourceTurnId) {
+      body[editMode ? 'edit_of_turn_id' : 'retry_of_turn_id'] = sourceTurnId;
+    }
+    const response = await fetch('/api/chat', {
+      method: 'POST',
+      headers: authHeaders({'Content-Type': 'application/json'}),
+      body: JSON.stringify(body)
+    });
+    if (response.status === 401) {
+      if (askToken()) return runTurn(text, replaceLast, sourceTurnId, editMode);
+      renderError(turnId, '未授权：缺少或错误的 Demo Token');
+      $('send-btn').disabled = false;
+      return;
+    }
+    const reader = response.body.getReader();
+    const decoder = new TextDecoder('utf-8');
+    let buffer = "";
+    while (true) {
+      const { value, done } = await reader.read();
+      if (done) break;
+      buffer += decoder.decode(value, { stream: true });
+      const lines = buffer.split('\n');
+      buffer = lines.pop();
+      for (const line of lines) {
+        const trimmed = line.trim();
+        if (!trimmed || !trimmed.startsWith('data: ')) continue;
+        try {
+          const payload = JSON.parse(trimmed.substring(6));
+          if (payload.turn_id) {
+            turn.dataset.serverTurnId = payload.turn_id;
+          }
+          if (payload.type === 'info') {
+            memoriesUsed = payload.memories_used || [];
+            renderMemoriesUsed(turnId, memoriesUsed, payload.mock);
+          } else if (payload.type === 'content') {
+            rawReplyText += payload.content;
+            renderAssistantContent(turnId, rawReplyText, false);
+          } else if (payload.type === 'error') {
+            renderError(turnId, payload.error);
+            $('send-btn').disabled = false;
+            return;
+          } else if (payload.type === 'done') {
+            if (payload.node_id) turn.dataset.nodeId = payload.node_id;
+            renderAssistantContent(turnId, rawReplyText, true);
+          }
+        } catch (e) {}
+      }
+      messagesEl.scrollTop = messagesEl.scrollHeight;
+    }
+  } catch (e) {
+    renderError(turnId, '流读取错误: ' + e);
+  }
+  $('send-btn').disabled = false;
+  inputEl.focus();
+  loadStats(); loadMemories(); loadConsoLog(); loadObservability();
+}
+
+function retryMessage(turnId) {
+  const turn = $(turnId);
+  if (!turn) return;
+  const text = turn.dataset.userText;
+  const serverTurnId = turn.dataset.serverTurnId || null;
+  if (text) runTurn(text, true, serverTurnId, false);
+}
+
+function editMessage(turnId) {
+  const turn = $(turnId);
+  if (!turn) return;
+  const bubble = turn.querySelector('.bubble.user');
+  if (!bubble || turn.querySelector('.edit-area')) return;
+  const oldText = turn.dataset.userText || bubble.textContent;
+  const wrap = bubble;
+  wrap.outerHTML = `<div class="edit-wrap" style="margin-left:32px; margin-top:4px">
+    <textarea class="edit-area" id="edit-${turnId}">${escape(oldText)}</textarea>
+    <div class="edit-actions">
+      <button onclick="saveEdit('${turnId}')">发送</button>
+      <button class="secondary" onclick="cancelEdit('${turnId}')">取消</button>
+    </div></div>`;
+  const ta = $('edit-' + turnId);
+  ta.focus(); ta.setSelectionRange(ta.value.length, ta.value.length);
+}
+
+function cancelEdit(turnId) {
+  const turn = $(turnId);
+  const ew = turn.querySelector('.edit-wrap');
+  if (!ew) return;
+  const text = turn.dataset.userText || '';
+  ew.outerHTML = `<div class="bubble user" style="padding-left:32px">${escape(text)}</div>`;
+}
+
+function saveEdit(turnId) {
+  const ta = $('edit-' + turnId);
+  if (!ta) return;
+  const newText = ta.value.trim();
+  if (!newText) return;
+  const turn = $(turnId);
+  const serverTurnId = turn?.dataset.serverTurnId || null;
+  runTurn(newText, true, serverTurnId, true);
+}
+
+async function consolidate() {
+  const btn = event.target; btn.disabled = true; btn.textContent = '巩固中…';
+  const r = await api('/api/consolidate', { method: 'POST' });
+  btn.disabled = false; btn.textContent = '手动巩固';
+  loadStats(); loadMemories(); loadConsoLog();
+}
+
+async function resetHistory() {
+  await ensureSession();
+  await api(`/api/reset-history${sessionQuery()}`, { method: 'POST' });
+  messagesEl.innerHTML = '<div class="empty">对话历史已清空（记忆库保留）。</div>';
+}
+
+async function deleteNode(nodeId) {
+  if (!confirm(`确定要删除该记忆节点 [${nodeId}] 吗？`)) return;
+  try {
+    await ensureSession();
+    const res = await api(`/api/node/${nodeId}${sessionQuery()}`, { method: 'DELETE' });
+    if (res.ok) {
+      loadStats();
+      loadMemories();
+    } else {
+      alert('删除失败');
+    }
+  } catch (e) {
+    alert('请求错误: ' + e);
+  }
+}
+
+async function resetMemory() {
+  const c1 = confirm("【高危警告】确定要清空所有的记忆节点吗？\n这会彻底删除数据库上已存的全部记忆，且不可恢复！");
+  if (!c1) return;
+  const c2 = confirm("【高危二次确认】请再次确认：\n您是否真的想要删除所有记忆节点并重新来过？");
+  if (!c2) return;
+  
+  try {
+    const res = await api('/api/reset-memory', { method: 'POST' });
+    if (res.ok) {
+      messagesEl.innerHTML = '<div class="empty">记忆库已彻底清空，对话历史已重置。</div>';
+      loadConfig();
+      loadStats();
+      loadMemories();
+      loadConsoLog();
+    } else {
+      alert('清空记忆库失败');
+    }
+  } catch (e) {
+    alert('请求错误: ' + e);
+  }
+}
+
+async function openSettings() {
+  $('set-err').textContent = ''; $('set-ok').textContent = '';
+  $('model-hint').textContent = '';
+  $('model-dropdown').classList.remove('show');
+  $('pick-btn').disabled = true;
+  _models = []; _activeIdx = -1; _filtered = [];
+  const s = await api('/api/settings');
+  $('set-base').value = s.api_base || '';
+  $('set-model').value = s.model || '';
+  $('key-hint').textContent = s.api_key_set ? `已配置，留空不修改` : '尚未配置';
+  $('set-key').value = '';
+  $('settings-modal').classList.add('show');
+}
+
+function closeSettings() {
+  $('settings-modal').classList.remove('show');
+}
+
+function modalBgClick(e) {
+  if (e.target.id !== 'settings-modal') return;
+  if (e.target.closest('.model-dropdown')) return;
+  closeSettings();
+}
+
+let _models = [];
+let _activeIdx = -1;
+let _filtered = [];
+
+async function fetchModels() {
+  const base = $('set-base').value.trim();
+  const key = $('set-key').value.trim();
+  const hint = $('model-hint');
+  const errEl = $('set-err');
+  if (!base) { errEl.textContent = '请先填写 API Base URL'; return; }
+  const btn = document.querySelector('.fetch-btn');
+  btn.disabled = true;
+  try {
+    const r = await api('/api/models', {
+      method: 'POST', headers: {'Content-Type':'application/json'},
+      body: JSON.stringify({ api_base: base, api_key: key }),
+    });
+    if (r.ok && r.models) {
+      _models = r.models;
+      hint.textContent = `获取到 ${r.models.length} 个模型`;
+      $('pick-btn').disabled = false;
+    } else {
+      errEl.textContent = '获取失败: ' + (r.error || '检查 Base URL/Key');
+    }
+  } catch (e) { errEl.textContent = '请求失败'; }
+  finally { btn.disabled = false; }
+}
+
+function toggleDropdown() {
+  const dd = $('model-dropdown');
+  if (dd.classList.contains('show')) { dd.classList.remove('show'); return; }
+  renderDropdown('');
+  dd.classList.add('show');
+}
+
+function renderDropdown(query) {
+  const dd = $('model-dropdown');
+  _filtered = query ? _models.filter(m => m.toLowerCase().includes(query.toLowerCase())) : _models;
+  const search = `<div class="search-box"><input id="dd-search" placeholder="过滤…" oninput="renderDropdown(this.value)" onkeydown="ddKeydown(event)"></div>`;
+  const opts = _filtered.map((m, i) => `<div class="opt" onclick="ddPick(${i})">${escape(m)}</div>`).join('');
+  dd.innerHTML = search + opts;
+}
+
+function ddPick(i) {
+  $('set-model').value = _filtered[i];
+  $('model-dropdown').classList.remove('show');
+}
+
+function ddKeydown(e) {
+  const opts = $('model-dropdown').querySelectorAll('.opt');
+  if (e.key === 'ArrowDown') { _activeIdx = Math.min(_activeIdx + 1, opts.length - 1); }
+  else if (e.key === 'ArrowUp') { _activeIdx = Math.max(_activeIdx - 1, 0); }
+  else if (e.key === 'Enter') { if (_activeIdx >= 0) ddPick(_activeIdx); }
+  else if (e.key === 'Escape') { $('model-dropdown').classList.remove('show'); return; }
+  else return;
+  opts.forEach((o, i) => o.classList.toggle('active', i === _activeIdx));
+  if (_activeIdx >= 0) opts[_activeIdx].scrollIntoView({ block: 'nearest' });
+}
+
+document.addEventListener('mousedown', e => {
+  if (!e.target.closest('.model-wrap') && !e.target.closest('#pick-btn')) $('model-dropdown').classList.remove('show');
+});
+
+async function saveSettings() {
+  $('set-err').textContent = ''; $('set-ok').textContent = '';
+  const body = {
+    api_base: $('set-base').value.trim() || null,
+    model: $('set-model').value.trim() || null,
+  };
+  const key = $('set-key').value;
+  if (key && !/^\*+$/.test(key)) body.api_key = key.trim();
+  const r = await api('/api/settings', {
+    method: 'POST', headers: {'Content-Type':'application/json'},
+    body: JSON.stringify(body),
+  });
+  if (r.ok) {
+    $('set-ok').textContent = '已保存' + (r.mock ? '（当前 mock 模式，补全 base+key+model 后生效）' : '');
+    loadConfig();
+    setTimeout(() => {
+      closeSettings();
+    }, 800);
+  } else {
+    $('set-err').textContent = '保存失败';
+  }
+}
+
+async function loadHistory() {
+  try {
+    await ensureSession();
+    const history = await api(`/api/history${sessionQuery()}`);
+    if (!history || !history.length) return;
+    $('empty-hint')?.remove();
+
+    for (let i = 0; i < history.length; i += 2) {
+      const userMsg = history[i];
+      const assistantMsg = history[i+1];
+      if (!userMsg || userMsg.role !== 'user') continue;
+
+      const turnId = 'turn_hist_' + i;
+      const turn = document.createElement('div');
+      turn.className = 'turn';
+      turn.id = turnId;
+      turn.dataset.userText = userMsg.content;
+      const serverTurnId = userMsg.turn_id || assistantMsg?.turn_id || '';
+      if (serverTurnId) turn.dataset.serverTurnId = serverTurnId;
+      if (assistantMsg?.node_id) turn.dataset.nodeId = assistantMsg.node_id;
+
+      let assistantHtml = '';
+      if (assistantMsg && assistantMsg.role === 'assistant') {
+        const parsed = parseStreamText(assistantMsg.content);
+        let thinkHtml = '';
+        if (parsed.think) {
+          thinkHtml = `
+            <div class="think-box">
+              <details>
+                <summary class="think-title">已完成思考（点击查看）</summary>
+                <div class="think-content">${escape(parsed.think)}</div>
+              </details>
+            </div>
+          `;
+        }
+
+        assistantHtml = `
+          <div class="role-row" style="margin-top:16px">
+            <div class="role-avatar assistant">G</div>
+            <div class="role-name">助手</div>
+          </div>
+          ${thinkHtml}
+          <div class="bubble assistant">${escape(parsed.reply)}</div>
+          <div class="msg-actions" style="margin-left: 32px;">
+            <button onclick="editMessage('${turnId}')">✎ 编辑</button>
+            <button onclick="retryMessage('${turnId}')">↻ 重试</button>
+          </div>
+        `;
+      }
+
+      turn.innerHTML = `
+        <div class="role-row">
+          <div class="role-avatar user">U</div>
+          <div class="role-name">你</div>
+        </div>
+        <div class="bubble user">${escape(userMsg.content)}</div>
+        <div class="msg-actions" style="margin-left: 32px;">
+          <button onclick="editMessage('${turnId}')">✎ 编辑</button>
+          <button onclick="retryMessage('${turnId}')">↻ 重试</button>
+        </div>
+        <div id="loading-${turnId}">
+          ${assistantHtml}
+        </div>
+      `;
+      messagesEl.appendChild(turn);
+    }
+    messagesEl.scrollTop = messagesEl.scrollHeight;
+  } catch (e) {
+    console.error("加载历史对话失败:", e);
+  }
+}
+
+// 初始加载 + 定时刷新
+async function bootstrap() {
+  await ensureSession();
+  loadConfig(); loadStats(); loadMemories(); loadConsoLog(); loadHistory(); loadObservability();
+}
+bootstrap();
+setInterval(() => { loadStats(); loadConsoLog(); loadObservability(); }, 5000);
+</script>
+</body>
+</html>

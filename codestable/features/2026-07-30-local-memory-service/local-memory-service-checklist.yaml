@@ -1,0 +1,35 @@
+feature: 2026-07-30-local-memory-service
+status: in_progress
+steps:
+  - id: persistence-orchestration
+    title: SQLite 持久化与内存索引编排
+    status: done
+    exit_signal: SQLite 中的 Q/A 可被读取并重建为可查询的 Memento 索引。
+  - id: http-contract
+    title: 精简 HTTP 服务契约
+    status: done
+    exit_signal: 服务仅暴露写入、查询和健康检查，并对非法请求返回稳定错误。
+  - id: verification
+    title: 可执行验证
+    status: done
+    exit_signal: 空库、写入查询、跨重启和请求校验均有自动化证据。
+  - id: open-source-onboarding
+    title: 开源示例与私有数据隔离
+    status: done
+    exit_signal: README 可复制地完成写入到查询，真实 testtxt 数据已忽略且取消跟踪。
+  - id: associative-graph-orchestration
+    title: 完整图联想编排
+    status: done
+    exit_signal: 每次重建均生成统计关键词事件边和概念图，查询融合事件图与概念图结果。
+  - id: associative-verification
+    title: 图联想可执行验证
+    status: done
+    exit_signal: 自动化测试证明事件边、概念边、分量得分和跨重启重建均生效。
+checks:
+  - SQLite 数据库是单个文件，重启后 Q/A 不丢失。
+  - 写入后无需调用方手动建索引即可查询。
+  - 服务默认仅监听 127.0.0.1。
+  - README 示例不依赖本地模型、真实数据或 API Key。
+  - data/testtxt.txt 不在 Git 跟踪范围内。
+  - 默认图联想路径不依赖本地大模型、远程 API Key 或 LLM。
+  - 外部 HTTP 路由仍只有写入、查询和健康检查。

@@ -1,0 +1,8 @@
+# Memento 服务可选依赖（HTTP + MCP）
+# 核心 memento 包不依赖这些；仅当需要启动 HTTP / MCP 服务时安装:
+#   pip install -r requirements-server.txt
+
+fastapi>=0.110
+uvicorn[standard]>=0.27
+mcp>=1.2
+pydantic>=2.5

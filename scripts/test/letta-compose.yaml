@@ -1,0 +1,42 @@
+services:
+  letta_db:
+    image: ankane/pgvector:v0.5.1
+    networks:
+      default:
+        aliases: [pgvector_db, letta-db]
+    environment:
+      - POSTGRES_USER=letta
+      - POSTGRES_PASSWORD=letta
+      - POSTGRES_DB=letta
+    volumes:
+      - letta_pgdata:/var/lib/postgresql/data
+    ports:
+      - "5433:5432"
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U letta"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+
+  letta_server:
+    image: letta/letta:latest
+    hostname: letta-server
+    depends_on:
+      letta_db:
+        condition: service_healthy
+    env_file:
+      - ../../.env
+    ports:
+      - "8083:8083"
+      - "8283:8283"
+    environment:
+      - LETTA_PG_URI=postgresql://letta:letta@letta-db:5432/letta
+      - LETTA_DEBUG=True
+      # Letta 0.16.x 的 OpenAI embedding client 只读取全局 OPENAI_API_KEY。
+      # 因此这里把全局 OpenAI 兼容 endpoint 留给硅基流动 embedding；
+      # OpenCode LLM key 由测试脚本通过 Letta BYOK provider 单独注册。
+      - OPENAI_API_KEY=${SILICONFLOW_API_KEY}
+      - OPENAI_API_BASE=${SILICONFLOW_API_BASE}
+
+volumes:
+  letta_pgdata:
